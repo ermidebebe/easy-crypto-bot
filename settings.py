@@ -40,5 +40,5 @@ setting = settings(ticker = ['AAPL','TSLA','BTC-USD'],interval= 1,
                                   'relative_status':['Above 0','Below 0'],
                                   'williams_status':['STAY OUT']
                                   },
-                   password='CWHlO66uGQps#',
-                   email='rouxmalan@gmail.com')
+                   password='',
+                   email='')
