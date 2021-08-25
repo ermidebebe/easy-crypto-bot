@@ -1,6 +1,7 @@
 import pandas as pd
 import datetime
 import numpy as np
+from pandas.tseries.offsets import Second
 from yfinance.utils import auto_adjust
 import private
 import settings
@@ -10,6 +11,7 @@ import yfinance as yf
 import schedule
 import warnings
 from easy_crypto import EasyCrypto
+import os
 warnings.filterwarnings('ignore')
 
 class signals:
@@ -96,27 +98,33 @@ class signals:
         sheet.insert_rows(send, row=2)
     def signal(self):
         result = pd.DataFrame(columns=['INSTRUMENT', 'INDICATOR','1M','1M(R)',
-        '1W','1W(R)','1D','1D(R)','4H','4H(R)','1H','1H(R)','30m','30m(R)','15m','15m(R)','5m','5m(R)','2m','2m(R)','1m','1m(R)','INSTRUCTION'])
+                                       '1W','1W(R)','1D','1D(R)','1H','1H(R)',
+                                       '30m','30m(R)','15m','15m(R)',
+                                       '5m','5m(R)','2m','2m(R)'
+                                       ,'1m','1m(R)','INSTRUCTION',
+                                       'TRADING STATUS'])
+        if os.path.exists('trading status.csv'):
+            trading_status=pd.read_csv('trading status.csv',index_col=0)
+        else:
+            trading_status=pd.DataFrame(index=settings.setting.ticker,columns=['trading status'],data=['OUT']*len(settings.setting.ticker))
+        
         for ticker in settings.setting.ticker:
-            final_status=''
+
             macd = {'INSTRUMENT': ticker,
-                     'INDICATOR': 'MACD',
-                     '4H(R)':'',
-                     '4H':''}
+                     'INDICATOR': 'MACD'}
             williams_r={'INSTRUMENT': '',
                      'INDICATOR': '%R',
                      '1M(R)':'',
                      '1W(R)':'',
                      '1D(R)':'',
-                     '4H(R)':'',
-                     '4H':'',
                      '1H(R)':'',
                      '30m(R)':'',
                      '15m(R)':'',
                      '5m(R)':'',
                      '2m(R)':'',
                      '1m(R)':'',
-                     'INSTRUCTION':''
+                     'INSTRUCTION':'',
+                     'TRADING STATUS':''
             }
             for interval in ['1mo', '1wk', '1d','1h','30m','15m','5m','2m','1m']:
                 if interval in ['1d','1wk','1mo']:
@@ -144,10 +152,6 @@ class signals:
                     macd['1H'] = action_status
                     macd['1H(R)'] = relative_status
                     williams_r['1H'] = williams
-                # elif interval == '4h':
-                #     macd['4H'] = action_status
-                #     macd['4H'] = relative_status
-                #     williams_r['4H'] = williams
                 elif interval=='1mo':
                     macd['1M'] = action_status
                     macd['1M(R)'] = relative_status
@@ -179,17 +183,23 @@ class signals:
                         and relative_status in settings.setting.buy_condition['relative_status']\
                         and williams in settings.setting.buy_condition['williams_status']):
                         macd['INSTRUCTION']='BUY'
-                        if ticker=='BTC-USD':
+                        if ticker=='BTC-USD' and trading_status['trading status'].loc[ticker]=='OUT':
                             self.easy_crypto.login()
                             self.easy_crypto.buy(settings.setting.buy_amount)
+                            trading_status['trading status'].loc[ticker]='IN'
+                        macd['TRADING STATUS']=trading_status['trading status'].loc[ticker]
+                        
                 #SELL:
                     elif (action_status in settings.setting.sell_condition['action_status'] \
                         and relative_status in settings.setting.sell_condition['relative_status']\
                         and williams in settings.setting.sell_condition['williams_status']):
                         macd['INSTRUCTION']='SELL'
-                        if ticker=='BTC-USD':
+                        if ticker=='BTC-USD' and trading_status['trading status'].loc[ticker]=='IN':
                             self.easy_crypto.login()
                             self.easy_crypto.sell(settings.setting.sell_amount)
+                            trading_status['trading status'].loc[ticker]='OUT'
+                            macd['TRADING STATUS']='OUT'
+                        macd['TRADING STATUS']=trading_status['trading status'].loc[ticker]
                 #HOLD:
 
                     elif (action_status in settings.setting.hold_condition['action_status'] \
@@ -203,15 +213,16 @@ class signals:
                         macd['INSTRUCTION']='STAY OUT'
                     else:
                         macd['INSTRUCTION']=''
-
+        
             result = result.append(macd, ignore_index=True)
             result = result.append(williams_r, ignore_index=True)
+        print(result)
         self.write_to_google_sheet(result)
+        trading_status.to_csv('trading status.csv')
 
 signal=signals()
-signal.signal()
 while True:
-    if datetime.datetime.now().minute % settings.setting.interval == 0:
+    if datetime.datetime.now().minute % settings.setting.interval == 0 and  datetime.datetime.now().second== 0:
         break
 schedule.every(settings.setting.interval*60).seconds.do(signal.signal)
 while True:

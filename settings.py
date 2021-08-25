@@ -24,11 +24,11 @@ setting = settings(ticker = ['AAPL','TSLA','BTC-USD'],interval= 1,
                    macd_signalLength=15,buy_amount=0.000000001,sell_amount=0.000000001,
                    williams_period=50,overBought=-20,overSold=-80,
                    instruction_period='1m',
-                   buy_condition={'action_status':['BUY'],
+                   buy_condition={'action_status':['SELL','STAY OUT','HOLD','BUY'],
                                   'relative_status':['Below 0','Above 0'],
                                   'williams_status':['BUY','HOLD']
                                   },
-                   sell_condition={'action_status':['SELL','STAY OUT','HOLD','BUY'],
+                   sell_condition={'action_status':['SELL'],
                                   'relative_status':['Above 0','Below 0'],
                                   'williams_status':['SELL','STAY OUT','HOLD']
                                   },
